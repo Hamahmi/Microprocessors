@@ -10,7 +10,6 @@ Copyright 1995-2005 Keil Software, Inc.
 #include <stdio.h>                /* prototype declarations for I/O functions */
 #include <string.h>
 
-
 #ifdef MONITOR51                         /* Debugging with Monitor-51 needs   */
 char code reserve [3] _at_ 0x23;         /* space for serial interrupt if     */
 #endif                                   /* Stop Exection with Serial Intr.   */
@@ -18,10 +17,13 @@ char code reserve [3] _at_ 0x23;         /* space for serial interrupt if     */
  
 int userA[9];	
 int userB[9];	
-int temp[9];					
-unsigned char xdata serial_input_buffer [] ="asfasfasf"; 
-																 
+int temp[9];
+int counter = 0;	
+int ua = 0;
+int ub = 0;
 unsigned i,j,k,l;
+sbit LED = P0^0;
+
 char key[12] = {'.','t','i','e','5','R','o','n','a','l','\0'};
 	
 char x ;
@@ -31,17 +33,19 @@ unsigned int T0_ISR_count = 0;
 
 
 void T0_ISR(void) interrupt 1 {
-	T0_ISR_count++;
+	counter++; //every 1 ms
+	TH0 = 0xFA;
+	TL0 = 0xCB;
 	TF0 = 0; // Reset the interrupt request
 }
 
 
-int main (void) {
+void main (void) {
 
 	#ifndef MONITOR51
-    SCON  = 0x50;		        /* SCON: mode 1, 8-bit UART, enable rcvr      */
-    TMOD |= 0x20;               /* TMOD: timer 1, mode 2, 8-bit reload        */
-    TH1   = 0xF3;                /* TH1:  reload value for 1200 baud @ 16MHz   */
+    SCON  = 0x50;		        		/* SCON: mode 1, 8-bit UART, enable rcvr      */
+    TMOD |= 0x29;               /* TMOD: timer 1, mode 2, 8-bit reload        */
+    TH1   = 0xF3;               /* TH1:  reload value for 1200 baud @ 16MHz   */
     TR1   = 1;                  /* TR1:  timer 1 run                          */
     TI    = 1;                  /* TI:   set TI to send first char of UART    */
 	#endif
@@ -52,42 +56,37 @@ int main (void) {
 	/*--------------------------------------
 	Set Timer0 for 16-bit interval timer mode.
 	--------------------------------------*/
-	TMOD = (TMOD & 0xF0) | 0x09;
+	//TMOD = (TMOD & 0xF0) | 0x09;
 	
 	for (i = 0; i < 2; i++){
 		
-		printf ("User %i please start \n", (i+1));
+		//printf ("U %i s \n", (i+1));
 
 		for (  j = 0; j < 5; j++){
 			
-			printf ("User %i please start entering word %i \n", (i+1),j+1);
+			printf ("User %i s w %i \n", (i+1),j+1);
 
 				for( k = 0; k< 10; k++){
 								
 					z = _getkey();
-					printf (" %c , %c , %i %\n" , z , key[k] , k);
 				
 					if(z == key[k] ){
 					
 						if(k > 0){
-
-							temp[k] = (((unsigned long)( ((unsigned int)TH0 << 8) | TL0 | ((unsigned long)T0_ISR_count << 16))/3)/1000);
-							printf ("Next please.\n");
+							temp[k-1] = counter;
+							printf ("N.\n");
 						}
 						
-						T0_ISR_count = 0;
-						TH0 = 0;
-						TL0 = 0;
+						counter = 0;
+						TH0 = 0xFA;
+						TL0 = 0xCB;
 					}
 					else{
-						
 						k = -1;
-						printf ("User %i please write word %i again from the beginning \n", (i+1),j+1);
+						printf ("ag \n");
 					}
 				}
 				
-				//key[0] = '.';
-				//key[1] = 't';
 				for(l = 0; l<9; l++){
 					
 					if(i == 0){
@@ -99,7 +98,55 @@ int main (void) {
 				}
 			}
 		}
-		return 0;
+		for( k = 0; k< 9; k++){
+			userA[k] = userA[k]/5;
+			userB[k] = userB[k]/5;
+		}
+		
+		// Test
+		for(j = 0; j< 8; j++){
+			printf ("test \n");
+
+			for( k = 0; k< 10; k++){
+				
+				z = _getkey();
+				
+				if(z == key[k] ){
+					
+					if(k > 0){
+							
+						temp[k-1] = counter;
+						printf ("N.\n");
+					}
+					counter = 0;
+					TH0 = 0xFA;
+					TL0 = 0xCB;
+				}
+				else{
+					k = -1;
+					printf ("ag \n");
+				}
+			}
+			
+			for( k = 0; k <9; k++){
+				ua += ((userA[k]-temp[k])*(userA[k]-temp[k]));
+				ub += ((userB[k]-temp[k])*(userB[k]-temp[k]));
+			}
+			
+			if(ua < ub){
+				LED =! LED;
+				LED =! LED;
+			}
+			else{
+				LED =! LED;
+				LED =! LED;
+				LED =! LED;
+				LED =! LED;
+			}
+			
+		}
+
+		while(1);
 }
 
 
