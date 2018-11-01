@@ -1,6 +1,5 @@
 /*------------------------------------------------------------------------------
 HELLO.C
-
 Copyright 1995-2005 Keil Software, Inc.
 ------------------------------------------------------------------------------*/
 
@@ -23,10 +22,15 @@ int ua = 0;
 int ub = 0;
 unsigned i,j,k,l;
 sbit LED = P0^0;
+//configure pin 1 of port 0 as input
+P0_1=1;
+sbit switch1 = P0^1;
+P0_2=1;
+sbit switch2 = P0^2; 
+
 
 char key[12] = {'.','t','i','e','5','R','o','n','a','l','\0'};
 	
-char x ;
 char z ;
 
 unsigned int T0_ISR_count = 0;
@@ -57,14 +61,15 @@ void main (void) {
 	Set Timer0 for 16-bit interval timer mode.
 	--------------------------------------*/
 	//TMOD = (TMOD & 0xF0) | 0x09;
-	
-	for (i = 0; i < 2; i++){
-		
+	while(1){
+	  if(!switch1){
 		//printf ("U %i s \n", (i+1));
-
+     if(switch2)
+			 i=2;
+		 else i=1;
 		for (  j = 0; j < 5; j++){
 			
-			printf ("User %i s w %i \n", (i+1),j+1);
+			printf ("User %i s w %i \n", i ,j+1);
 
 				for( k = 0; k< 10; k++){
 								
@@ -89,7 +94,7 @@ void main (void) {
 				
 				for(l = 0; l<9; l++){
 					
-					if(i == 0){
+					if(i == 1){
 						userA[l] += temp[l];
 					}
 					else{
@@ -97,13 +102,16 @@ void main (void) {
 					}
 				}
 			}
-		}
+		
+	}
+		// Test
+	if(switch1){
+		//moved this to test to make sure both users already added their training
 		for( k = 0; k< 9; k++){
 			userA[k] = userA[k]/5;
 			userB[k] = userB[k]/5;
 		}
 		
-		// Test
 		for(j = 0; j< 8; j++){
 			printf ("test \n");
 
@@ -134,19 +142,18 @@ void main (void) {
 			}
 			
 			if(ua < ub){
-				LED =! LED;
-				LED =! LED;
+				/*LED =! LED;
+				LED =! LED;*/
 			}
 			else{
+				/*LED =! LED;
 				LED =! LED;
 				LED =! LED;
-				LED =! LED;
-				LED =! LED;
+				LED =! LED;*/
 			}
 			
 		}
-
-		while(1);
+	} 
+	}
+		
 }
-
-
