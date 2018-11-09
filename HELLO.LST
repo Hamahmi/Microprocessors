@@ -1,0 +1,219 @@
+C51 COMPILER V9.59.0.0   HELLO                                                             11/09/2018 11:55:34 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE HELLO
+OBJECT MODULE PLACED IN HELLO.OBJ
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE HELLO.C OPTIMIZE(9,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /*------------------------------------------------------------------------------
+   2          Copyright 2018 Hardwired, Inc.
+   3          ------------------------------------------------------------------------------*/
+   4          
+   5          // Includes
+   6          
+   7          #include <REG52.h>                    /* special function register declarations       */
+   8                                                /* for the intended 8051 derivative             */
+   9          #include <stdio.h>                    /* prototype declarations for I/O functions     */
+  10          
+  11          #ifdef MONITOR51                      /* debugging with Monitor-51 needs space for    */
+                char code reserve [3] at 0x23;      /* serial interrupt if Stop Exection with Serial*/
+              #endif                                /* Intr. is enabled                             */
+  14          
+  15          // End of Includes -------------------------------------------------------------
+  16          
+  17          // Declarations
+  18          
+  19          unsigned int data counter _at_ 0x46;  // timer, increments every 1ms
+  20          unsigned long data ua _at_ 0x4A;     // 1st user sum
+  21          unsigned long data ub _at_ 0x4E;      // 2nd user sum
+  22          unsigned char data i _at_ 0x52;
+  23          unsigned char data j _at_ 0x56;
+  24          unsigned char data k _at_ 0x5A;
+  25          unsigned char data l _at_ 0x5E; // iterators
+  26          unsigned char data f _at_ 0x66;
+  27          
+  28          
+  29          
+  30          
+  31          sbit LED = P0^0;  // output, flashes once for 1st user, twice for the 2nd
+  32          
+  33          P0_1=1;                               /* configure pin 1 of port 0 as input         */
+  34          sbit switch1 = P0^1;    // 1 training , 0 test
+  35          
+  36          P0_2=1;
+  37          sbit switch2 = P0^2;    // 1 user1 , 0 user2
+  38          unsigned int xdata userA[9] _at_ 0xF2 ; // 1st User training
+  39          unsigned int xdata userB[9] _at_ 0x109; // 2nd user training
+  40          unsigned int xdata temp[9]  _at_ 0x120;  // test data
+  41          char key[11] = {'.','t','i','e','5','R','o','n','a','l','\0'} ;
+  42          
+  43          char data z _at_ 0x62;    // the key from user 
+  44          
+  45          // End of Declarations -------------------------------------------------------------
+  46          
+  47          
+  48          // Methods
+  49          
+  50          void setTimer(){
+  51   1        
+  52   1        TH0 = 0xFA;
+  53   1        TL0 = 0xCB;
+  54   1      }
+  55          
+C51 COMPILER V9.59.0.0   HELLO                                                             11/09/2018 11:55:34 PAGE 2   
+
+  56          void resetCounter(){
+  57   1        
+  58   1        counter = 0;
+  59   1        setTimer();
+  60   1      }
+  61          
+  62          void T0_ISR(void) interrupt 1 {
+  63   1      
+  64   1        counter++; //every 1 ms
+  65   1        setTimer();
+  66   1        TF0 = 0; // Reset the interrupt request
+  67   1      }
+  68          
+  69          void getWord(){
+  70   1        
+  71   1        for( k = 0; k< 10; k++){
+  72   2                  
+  73   2          z = _getkey();
+  74   2          if(z == key[k] ){ // the char input is correct
+  75   3                    
+  76   3            if(k > 0){
+  77   4                      
+  78   4              temp[k-1] = counter;
+  79   4            }
+  80   3            printf ("N\n");
+  81   3                    
+  82   3            resetCounter();
+  83   3          }
+  84   2          else{           // the char is wrong, ask the user to start the word again
+  85   3              
+  86   3            k = -1;
+  87   3            printf ("Ag\n");
+  88   3          }
+  89   2        }
+  90   1      }
+  91          
+  92          
+  93          void main (void) {
+  94   1      
+  95   1        #ifndef MONITOR51
+  96   1          SCON = 0x50;        /* SCON: mode 1, 8-bit UART, enable rcvr  */
+  97   1          TMOD |= 0x29;       /* TMOD: timer 1, mode 2, 8-bit reload    */
+  98   1          TH1 = 0xF3;         /* TH1: reload value for F3 baud @ 11 MHz */
+  99   1          TR1 = 1;            /* TR1: timer 1 run                       */
+ 100   1          TI = 1;             /* TI: set TI to send first char of UART  */
+ 101   1        #endif
+ 102   1      
+ 103   1        ET0 = 1;  
+ 104   1        EA = 1;
+ 105   1        TR0 = 1;
+ 106   1        f = 1;
+ 107   1      
+ 108   1        // Start of the classifier
+ 109   1        
+ 110   1        while(1){
+ 111   2          
+ 112   2          // Train
+ 113   2          
+ 114   2          if(switch1){ // switch1 == 1, Training
+ 115   3            
+ 116   3            if(!f)
+ 117   3              for( i = 0; i < 9; i ++){
+C51 COMPILER V9.59.0.0   HELLO                                                             11/09/2018 11:55:34 PAGE 3   
+
+ 118   4                userA[i] = 0;
+ 119   4                userB[i] = 0;
+ 120   4              }
+ 121   3            
+ 122   3            if(switch2)  // switch2 == 1, user1
+ 123   3              i=1;
+ 124   3            else       // switch2 == 0, user2
+ 125   3              i=2;
+ 126   3            
+ 127   3            for ( j = 1; j <= 5; j++){  // each user inputs the word 5 times
+ 128   4              
+ 129   4              printf ("Usr %bd Wrd %bd\n", i ,j);     
+ 130   4      
+ 131   4              getWord();
+ 132   4      
+ 133   4              for(l = 0; l<9; l++){
+ 134   5                
+ 135   5                if(i == 1)
+ 136   5                  userA[l] += temp[l];
+ 137   5                else
+ 138   5                  userB[l] += temp[l];
+ 139   5              }
+ 140   4            }
+ 141   3            f = 1;
+ 142   3          }
+ 143   2      
+ 144   2          // Test
+ 145   2      
+ 146   2          if(!switch1){ // switch1 == 0, Testing
+ 147   3      
+ 148   3            //moved this to test to make sure both users already added their training
+ 149   3            if(f){
+ 150   4              for( k = 0; k< 9; k++){
+ 151   5                
+ 152   5                userA[k] = userA[k]/5;
+ 153   5                userB[k] = userB[k]/5;
+ 154   5              }
+ 155   4              f = 0;
+ 156   4            }
+ 157   3      
+ 158   3              
+ 159   3              printf ("tst\n");
+ 160   3              
+ 161   3              getWord();
+ 162   3              
+ 163   3              ua = 0;
+ 164   3              ub = 0;
+ 165   3              for( k = 0; k <9; k++){
+ 166   4                ua += ((userA[k]-temp[k])*(userA[k]-temp[k]));
+ 167   4                ub += ((userB[k]-temp[k])*(userB[k]-temp[k]));
+ 168   4              }
+ 169   3              
+ 170   3              if(ua < ub){
+ 171   4                printf("A\n");
+ 172   4                resetCounter();
+ 173   4                LED =! LED;
+ 174   4                while(counter < 500);
+ 175   4                LED =! LED;
+ 176   4              }
+ 177   3              else{
+ 178   4                printf("B\n");
+ 179   4                resetCounter();
+C51 COMPILER V9.59.0.0   HELLO                                                             11/09/2018 11:55:34 PAGE 4   
+
+ 180   4                LED =! LED;
+ 181   4                while(counter < 500);
+ 182   4                LED =! LED;
+ 183   4                while(counter < 1000);
+ 184   4                LED =! LED;
+ 185   4                while(counter < 1500);
+ 186   4                LED =! LED;
+ 187   4              }
+ 188   3            }
+ 189   2          }
+ 190   1        }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    650    ----
+   CONSTANT SIZE    =     35    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     15    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
